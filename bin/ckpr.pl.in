@@ -1,0 +1,51 @@
+#!@PERL@
+
+use strict;
+
+my $LLVM_CLANG = "@LLVM_CLANG@";
+my $CLANGITDIR = "@SSFDIR@/xlate/clangit";
+
+# parse the command line arguments
+my $debug = 0;
+my @x_infiles = ();
+my $x_outfile = 0;
+my $clang_required = 1;
+while(@ARGV) {
+  my $myarg = shift @ARGV;
+  if($myarg eq '-o') {
+    $x_outfile = shift @ARGV;
+  } elsif($myarg =~ /^-/) {
+    if($myarg =~ /-DAUTOXLATE_REQUIRED/) {
+      my ($lhs, $rhs) = split('=', $myarg);
+      if(defined($rhs) && ($rhs eq 'no')) { $clang_required = 0; }
+    } elsif($myarg =~ /-DSSFCMDDEBUG/) {
+      my ($lhs, $rhs) = split('=', $myarg);
+      if(defined($rhs) && ($rhs eq 'yes')) { $debug = 1; }
+    } else { die "ERROR: invalid command line!\n"; }
+  } else {
+    push(@x_infiles, $myarg);
+  }
+}
+if($x_outfile eq '') { $x_outfile = "plist.x"; }
+if(scalar(@x_infiles) == 0) { die "ERROR: missing input file!\n"; }
+my $x_infiles = join(' ', @x_infiles);
+
+sub runcmd {
+  my $cmd = shift;
+  if($debug) { print "> $cmd\n"; }
+  #`$cmd`;
+  open CMD, "$cmd 2>&1 |" or die;
+  open LOG, ">>ssfout.log" or die;
+  while(<CMD>) { print LOG $_; print }
+  close CMD;
+  my $exit = $? >> 8;
+  close LOG;
+  if($exit) { die; }
+}
+
+if($LLVM_CLANG eq 'yes') {
+  runcmd "${CLANGITDIR}/checkproc ${x_infiles} -o ${x_outfile}";
+} else {
+  if($clang_required) { die "ERROR: llvm/clang is required but is not configured with minissf!\n"; }
+  runcmd "touch ${x_outfile}";
+}

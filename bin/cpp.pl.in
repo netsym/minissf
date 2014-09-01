@@ -1,0 +1,67 @@
+#!@PERL@
+
+use strict;
+
+my $LLVM_CLANG = "@LLVM_CLANG@";
+my $CXXFLAGS = "@CXXFLAGS@ -I@SSFDIR@";
+my $CXXCPP = "@MPICXX@ -E -C";
+my $CLANG = "@LLVM_ROOT@/bin/clang";
+my $CLANGITDIR = "@SSFDIR@/xlate/clangit";
+my $P4DIR = "@SSFDIR@/xlate/p4";
+
+# parse the command line arguments
+my $debug = 0;
+my $c_outfile = 0;
+my $x_outfile = 0;
+my @cxxflags = ();
+my $c_infile = 0;
+my $clang_required = 1;
+while(@ARGV) {
+  my $myarg = shift @ARGV;
+  if($myarg eq '-x') {
+    $x_outfile = shift @ARGV;
+  } elsif($myarg eq '-o') {
+    $c_outfile = shift @ARGV;
+  } elsif($myarg =~ /^-/) {
+    if($myarg =~ /-DAUTOXLATE_REQUIRED/) {
+      my ($lhs, $rhs) = split('=', $myarg);
+      if(defined($rhs) && ($rhs eq 'no')) { $clang_required = 0; }
+    } elsif($myarg =~ /-DSSFCMDDEBUG/) {
+      my ($lhs, $rhs) = split('=', $myarg);
+      if(defined($rhs) && ($rhs eq 'yes')) { $debug = 1; }
+    } else { push(@cxxflags, $myarg); }
+  } else {
+    if($c_infile eq 0) { $c_infile = $myarg; }
+    else { die "ERROR: invalid command line!\n"; }
+  }
+}
+my $cxxflags = join(' ', @cxxflags);
+if($c_infile eq '') { die "ERROR: missing input file!\n"; }
+if($c_outfile eq '') { $c_outfile = "pre_${c_infile}"; }
+if($x_outfile eq '') { $x_outfile = "${c_infile}.x"; } # XXX: should be replacing only the file extension
+
+sub runcmd {
+  my $cmd = shift;
+  if($debug) { print "> $cmd\n"; }
+  #`$cmd`;
+  open CMD, "$cmd 2>&1 |" or die;
+  open LOG, ">>ssfout.log" or die;
+  while(<CMD>) { print LOG $_; print }
+  close CMD;
+  my $exit = $? >> 8;
+  close LOG;
+  if($exit) { die; }
+}
+
+$cxxflags = "${CXXFLAGS} ${cxxflags}";
+if($LLVM_CLANG eq 'yes') {
+  runcmd "@MPICXX@ -c ${cxxflags} -o _tmp_0.o ${c_infile}";
+  runcmd "${CXXCPP} ${cxxflags} -o ${c_outfile} ${c_infile}";
+  eval { runcmd "${CLANG} -cc1 -load ${CLANGITDIR}/libannotate.so -plugin minissf-annotate ${cxxflags} -fexceptions -fblocks -fcxx-exceptions ${c_outfile} -o ${x_outfile} >> ssfout.log 2>&1"; };
+} else {
+  if($clang_required) { die "ERROR: llvm/clang is required but is not configured with minissf!\n"; }
+  runcmd "${CXXCPP} ${cxxflags} -o _tmp_0.cc ${c_infile}";
+  runcmd "${P4DIR}/cmtstrip _tmp_0.cc _tmp_1.cc";
+  runcmd "perl ${P4DIR}/p4.pl -x _tmp_1.cc ${c_outfile}";
+  runcmd "touch ${x_outfile}";
+}

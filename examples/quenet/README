@@ -1,0 +1,33 @@
+Simulation of a Queuing Network
+
+The queuing network can be represented as a directed graph. The
+nodes of the graph are queues (each with its own queuing discipline
+and service time distribution). The links of the graph dictate how
+jobs are traversing on the network. Each link is associated with a
+delay: a job leaving the queue at the head of the link will take
+this amount of simulation time before it reaches the next
+queue. For each outgoing link of a queue, a branching probability
+is assigned, which is the probability for a job leaving the queue
+to choose this link.
+
+We consider three queuing disciplines: FIFO, LIFO, and RANDOM. FIFO
+is first-in-first-out.  LIFO is last-in-first-out. RANDOM means
+that a job in queue enters service in random order. In any case,
+the queue is non-preemptive and has an unlimited buffer to store
+the arrival jobs. Also we assume that the service time is a random
+variable with an exponential random distribution.
+
+The input to this simulation program is a file that describes the
+network, which contains a list of nodes and their connections
+in-between. The first line of the file specifies the number of
+queues in the network and the average number of initial jobs in
+each queue. The initial number of jobs in a queue is a random
+variable with a Poisson distribution (with the given mean).  The
+remaining lines of the file each describes a queue in the network
+and observes the following format. The first column is the queue
+id, followed by the queuing discipline (either FIFO, LIFO, or
+RANDOM), and then followed by the mean service time.  The fourth
+column is the number of outgoing links of this queue. For each
+outgoing link, we list the id of the queue the link is connected
+to, the branching probability (which should sum to one), and the
+link delay.

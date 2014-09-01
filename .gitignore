@@ -1,0 +1,8 @@
+Makefile.include
+config.log
+config.status
+ssf_config.h
+bin/*.pl
+**/*.a
+**/*.o
+**/*.oo
